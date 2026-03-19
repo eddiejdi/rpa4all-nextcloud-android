@@ -57,3 +57,11 @@ fastlane/Fastfile
 # python
 **/__pycache__/
 /gradle/verification-keyring.gpg
+
+# signing keys and credentials (NEVER commit these)
+.keys/*.jks
+.keys/*.pem
+.keys/*.p12
+.keys/*.env
+service-account.json
+google-play-service-account.json
