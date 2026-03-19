@@ -49,12 +49,11 @@ jobs:
               run: scripts/uploadReport.sh "${{ secrets.LOG_USERNAME }}" "${{ secrets.LOG_PASSWORD }}" ${{github.event.number}} "test" "Unit" ${{github.event.number}}
 
             - name: Upload coverage to codecov
-              if: ${{ secrets.CODECOV_TOKEN != '' }}
               uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
               with:
                   token: ${{ secrets.CODECOV_TOKEN }}
                   flags: unit
-                  fail_ci_if_error: true
+                  fail_ci_if_error: false
                   files: app/build/reports/jacoco/jacocoTestGplayDebugUnitTestReport/jacoco.xml
 
             - name: Upload jacoco artifacts
