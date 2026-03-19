@@ -7,15 +7,19 @@
  */
 package com.owncloud.android.ui.activity
 
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
-import android.view.View
+import androidx.appcompat.app.AppCompatActivity
 
 /**
  * Activity providing information about ways to participate in the app's development.
  */
-class HuaweiCommunityActivity : CommunityActivity() {
+class HuaweiCommunityActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        binding.communityReleaseCandidatePlaystore.visibility = View.GONE
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://help.nextcloud.com/c/mobile/18"))
+        startActivity(intent)
+        finish()
     }
 }
