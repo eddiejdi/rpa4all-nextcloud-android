@@ -75,7 +75,7 @@ jobs:
 
       - name: Decode Google Play service account
         run: |
-          echo "${{ secrets.RPA4ALL_PLAY_SERVICE_ACCOUNT_JSON }}" > /tmp/service-account.json
+          echo "${{ secrets.RPA4ALL_PLAY_SERVICE_ACCOUNT_JSON_B64 }}" | base64 -d > /tmp/service-account.json
 
       - name: Publish to Google Play (${{ inputs.track }})
         uses: r0adkll/upload-google-play@v1
