@@ -60,7 +60,7 @@ jobs:
           echo "org.gradle.caching=true" >> gradle.properties
           echo "org.gradle.parallel=true" >> gradle.properties
           ./gradlew bundleRpa4allRelease \
-            -Pandroid.injected.signing.store.file=.keys/rpa4all-release.jks \
+            -Pandroid.injected.signing.store.file=${{ github.workspace }}/.keys/rpa4all-release.jks \
             -Pandroid.injected.signing.store.password="${STORE_PASS}" \
             -Pandroid.injected.signing.key.alias="${KEY_ALIAS}" \
             -Pandroid.injected.signing.key.password="${KEY_PASS}" \
