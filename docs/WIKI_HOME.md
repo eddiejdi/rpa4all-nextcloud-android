@@ -35,6 +35,14 @@ Foi gerado um APK assinado para distribuição com `jarsigner`, arquivo final:
 - Asset APK:
   `https://github.com/eddiejdi/rpa4all-nextcloud-android/releases/download/v1.0.0/rpa4all-nextcloud-android-v1.0.0.apk`
 
+## Google Play
+
+Fluxo preparado para publicação no app `com.rpa4all.nextcloud`:
+
+- Build de AAB: `scripts/release/build_rpa4all_play_artifacts.sh`
+- Upload via API Play: `scripts/release/upload_rpa4all_play.py`
+- Guia completo: `docs/GOOGLE_PLAY_DEPLOY_RPA4ALL.md`
+
 ## Authentik (`auth.rpa4all.com`)
 
 Template customizado:
