@@ -47,6 +47,7 @@ jobs:
 
       - name: Decode keystore
         run: |
+          mkdir -p .keys
           echo "${{ secrets.RPA4ALL_KEYSTORE_BASE64 }}" | base64 -d > .keys/rpa4all-release.jks
 
       - name: Build signed AAB
