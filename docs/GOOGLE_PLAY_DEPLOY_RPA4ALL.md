@@ -12,6 +12,25 @@
 3. JSON da Service Account local (exemplo: `~/.secrets/google-play-rpa4all.json`).
 4. Keystore de upload da Play (a mesma registrada no app).
 
+## GitHub Actions (publicacao automatica)
+
+Configurar os seguintes secrets no repositorio:
+
+- `RPA4ALL_KEYSTORE_BASE64`: keystore JKS em base64
+- `RPA4ALL_KEYSTORE_STOREPASS`: senha do keystore
+- `RPA4ALL_KEYSTORE_KEYPASS`: senha da chave
+- `RPA4ALL_KEYSTORE_ALIAS`: alias da chave
+- `RPA4ALL_PLAY_SERVICE_ACCOUNT_JSON_B64`: JSON da service account em base64
+- `TELEGRAM_BOT_TOKEN` (opcional): token do bot Telegram para notificações
+- `TELEGRAM_CHAT_ID` (opcional): ID do chat/group Telegram para receber link de internal testing
+
+Depois disso, execute o workflow `.github/workflows/publish-rpa4all.yml` com `track=internal`.
+
+### Notas sobre Telegram (opcional)
+- Se `TELEGRAM_BOT_TOKEN` e `TELEGRAM_CHAT_ID` forem configurados, você receberá um link de instalação no Telegram após cada publicação bem-sucedida no track internal.
+- Para obter o bot token, converse com `@BotFather` no Telegram.
+- Para obter o chat ID, encaminhe uma mensagem para `@JsonDumpBot` e procure o campo `from.id`.
+
 ## Build AAB
 
 ```bash
@@ -59,3 +78,5 @@ python3 scripts/release/upload_rpa4all_play.py \
 
 - Sem a keystore correta de upload, a Play rejeita o AAB.
 - Sem service account com acesso ao app, o upload falha com permissão.
+- Link para testers (internal testing): `https://play.google.com/apps/testing/com.rpa4all.nextcloud`
+  - O app aparece para instalacao depois do primeiro upload bem-sucedido no track `internal`.

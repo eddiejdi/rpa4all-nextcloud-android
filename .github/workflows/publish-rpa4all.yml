@@ -50,6 +50,9 @@ jobs:
           mkdir -p .keys
           echo "${{ secrets.RPA4ALL_KEYSTORE_BASE64 }}" | base64 -d > .keys/rpa4all-release.jks
 
+      - name: Ensure Gradle wrapper is executable
+        run: chmod +x ./gradlew
+
       - name: Build signed AAB
         env:
           STORE_PASS: ${{ secrets.RPA4ALL_KEYSTORE_STOREPASS }}
@@ -86,6 +89,30 @@ jobs:
           track: ${{ inputs.track }}
           status: completed
 
+      - name: Publish rollout summary
+        if: always()
+        run: |
+          echo "## RPA4All Play Publish" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Package: com.rpa4all.nextcloud" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Track: ${{ inputs.track }}" >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ inputs.track }}" = "internal" ]; then
+            echo "- Internal testing URL: https://play.google.com/apps/testing/com.rpa4all.nextcloud" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Send Telegram notification
+        if: success() && inputs.track == 'internal'
+        run: |
+          TESTING_URL="https://play.google.com/apps/testing/com.rpa4all.nextcloud"
+          MESSAGE="✅ *RPA4All publicado no Google Play Internal*%0A%0A📱 Instale aqui:%0A$TESTING_URL%0A%0A📦 Pacote: com.rpa4all.nextcloud%0A🏷️ Versão: ${{ github.run_number }}"
+          curl -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+            -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
+            -d text="$MESSAGE" \
+            -d parse_mode="Markdown" || echo "⚠️ Falha ao enviar notificação Telegram (secrets não configurados)"
+
       - name: Clean up service account key
         if: always()
         run: rm -f /tmp/service-account.json
+
+      - name: Clean up keystore
+        if: always()
+        run: rm -f .keys/rpa4all-release.jks
