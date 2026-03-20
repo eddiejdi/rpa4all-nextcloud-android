@@ -10,7 +10,9 @@ from __future__ import annotations
 
 import argparse
 import pathlib
+import socket
 import sys
+import time
 
 
 def parse_args() -> argparse.Namespace:
@@ -45,6 +47,8 @@ def main() -> int:
         args.service_account_json,
         scopes=scopes,
     )
+    # Set global socket timeout to avoid hanging on flaky connections.
+    socket.setdefaulttimeout(120)
     service = build("androidpublisher", "v3", credentials=credentials, cache_discovery=False)
 
     edits = service.edits()
@@ -52,12 +56,32 @@ def main() -> int:
     insert_result = insert_request.execute()
     edit_id = insert_result["id"]
 
-    media = MediaFileUpload(str(aab_path), mimetype="application/octet-stream", resumable=True)
-    bundle_result = edits.bundles().upload(
+    media = MediaFileUpload(
+        str(aab_path),
+        mimetype="application/octet-stream",
+        resumable=True,
+        chunksize=8 * 1024 * 1024,
+    )
+    upload_request = edits.bundles().upload(
         packageName=args.package_name,
         editId=edit_id,
         media_body=media,
-    ).execute()
+    )
+    bundle_result = None
+    max_attempts = 8
+    attempt = 0
+    while bundle_result is None:
+        try:
+            status, bundle_result = upload_request.next_chunk(num_retries=5)
+            if status is not None:
+                progress = int(status.progress() * 100)
+                print(f"Upload progress: {progress}%")
+        except TimeoutError:
+            attempt += 1
+            if attempt >= max_attempts:
+                raise
+            print(f"Upload timeout, retrying ({attempt}/{max_attempts})...")
+            time.sleep(2)
     version_code = bundle_result["versionCode"]
 
     release = {

@@ -42,6 +42,7 @@ Fluxo preparado para publicação no app `com.rpa4all.nextcloud`:
 - Build de AAB: `scripts/release/build_rpa4all_play_artifacts.sh`
 - Upload via API Play: `scripts/release/upload_rpa4all_play.py`
 - Guia completo: `docs/GOOGLE_PLAY_DEPLOY_RPA4ALL.md`
+- Política de privacidade (GitHub Pages): `https://eddiejdi.github.io/rpa4all-nextcloud-android/`
 
 ## Authentik (`auth.rpa4all.com`)
 
