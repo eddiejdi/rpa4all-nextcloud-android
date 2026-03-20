@@ -16,6 +16,19 @@ on:
           - alpha
           - beta
           - production
+      release_status:
+        description: "Google Play release status"
+        required: true
+        default: "auto"
+        type: choice
+        options:
+          - auto
+          - draft
+          - completed
+
+env:
+  RPA4ALL_VERSION_CODE_BASE: 330010000
+  RPA4ALL_INTERNAL_TEST_URL: https://play.google.com/apps/internaltest/4701629039076063679
 
 # Só permite uma publicação por vez
 concurrency:
@@ -50,11 +63,26 @@ jobs:
           mkdir -p .keys
           echo "${{ secrets.RPA4ALL_KEYSTORE_BASE64 }}" | base64 -d > .keys/rpa4all-release.jks
 
+      - name: Ensure Gradle wrapper is executable
+        run: chmod +x ./gradlew
+
+      - name: Calculate unique version code
+        run: |
+          # Keep the RPA4All internal track monotonic with the already published 33.1.0 Alpha1 build.
+          # Use a bounded offset to stay within the Android int32 limit (max 2147483647).
+          RUN_NUM=${{ github.run_number }}
+          BUILD_OFFSET=$(((RUN_NUM % 99999) + 1))
+          VERSION_CODE=$((${{ env.RPA4ALL_VERSION_CODE_BASE }} + BUILD_OFFSET))
+          echo "RPA4ALL_BUILD_NUMBER=$BUILD_OFFSET" >> $GITHUB_ENV
+          echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_ENV
+          echo "Build #$RUN_NUM (offset: $BUILD_OFFSET) → versionCode=$VERSION_CODE"
+
       - name: Build signed AAB
         env:
           STORE_PASS: ${{ secrets.RPA4ALL_KEYSTORE_STOREPASS }}
           KEY_PASS: ${{ secrets.RPA4ALL_KEYSTORE_KEYPASS }}
           KEY_ALIAS: ${{ secrets.RPA4ALL_KEYSTORE_ALIAS }}
+          RPA4ALL_BUILD_NUMBER: ${{ env.RPA4ALL_BUILD_NUMBER }}
         run: |
           echo "org.gradle.jvmargs=-Xmx4g -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8 -XX:+UseParallelGC -XX:MaxMetaspaceSize=512m" >> gradle.properties
           echo "org.gradle.caching=true" >> gradle.properties
@@ -77,7 +105,9 @@ jobs:
         run: |
           echo "${{ secrets.RPA4ALL_PLAY_SERVICE_ACCOUNT_JSON_B64 }}" | base64 -d > /tmp/service-account.json
 
-      - name: Publish to Google Play (${{ inputs.track }})
+      - name: Publish to Google Play (${{ inputs.track }}) as completed
+        if: inputs.release_status == 'completed'
+        id: publish_completed
         uses: r0adkll/upload-google-play@v1
         with:
           serviceAccountJson: /tmp/service-account.json
@@ -86,6 +116,89 @@ jobs:
           track: ${{ inputs.track }}
           status: completed
 
+      - name: Publish to Google Play (${{ inputs.track }}) as draft
+        if: inputs.release_status == 'draft'
+        id: publish_draft
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJson: /tmp/service-account.json
+          packageName: com.rpa4all.nextcloud
+          releaseFiles: app/build/outputs/bundle/rpa4allRelease/app-rpa4all-release.aab
+          track: ${{ inputs.track }}
+          status: draft
+
+      - name: Publish to Google Play (${{ inputs.track }}) automatically
+        if: inputs.release_status == 'auto'
+        id: publish_auto_completed
+        continue-on-error: true
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJson: /tmp/service-account.json
+          packageName: com.rpa4all.nextcloud
+          releaseFiles: app/build/outputs/bundle/rpa4allRelease/app-rpa4all-release.aab
+          track: ${{ inputs.track }}
+          status: completed
+
+      - name: Fallback publish to Google Play (${{ inputs.track }}) as draft
+        if: inputs.release_status == 'auto' && steps.publish_auto_completed.outcome == 'failure'
+        id: publish_auto_draft
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJson: /tmp/service-account.json
+          packageName: com.rpa4all.nextcloud
+          releaseFiles: app/build/outputs/bundle/rpa4allRelease/app-rpa4all-release.aab
+          track: ${{ inputs.track }}
+          status: draft
+
+      - name: Resolve effective release status
+        if: always()
+        id: resolve_release_status
+        run: |
+          EFFECTIVE_STATUS="${{ inputs.release_status }}"
+          if [ "${{ inputs.release_status }}" = "auto" ]; then
+            if [ "${{ steps.publish_auto_completed.outcome }}" = "success" ]; then
+              EFFECTIVE_STATUS="completed"
+            elif [ "${{ steps.publish_auto_draft.outcome }}" = "success" ]; then
+              EFFECTIVE_STATUS="draft"
+            else
+              EFFECTIVE_STATUS="failed"
+            fi
+          fi
+          echo "effective_status=$EFFECTIVE_STATUS" >> "$GITHUB_OUTPUT"
+
+      - name: Publish rollout summary
+        if: always()
+        run: |
+          echo "## RPA4All Play Publish" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Package: com.rpa4all.nextcloud" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Track: ${{ inputs.track }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Requested release status: ${{ inputs.release_status }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Effective release status: ${{ steps.resolve_release_status.outputs.effective_status }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Version Code: ${{ env.VERSION_CODE }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Build #: ${{ env.RPA4ALL_BUILD_NUMBER }}" >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ inputs.track }}" = "internal" ]; then
+            echo "- Internal testing URL: ${{ env.RPA4ALL_INTERNAL_TEST_URL }}" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Send Telegram notification
+        if: success() && inputs.track == 'internal'
+        run: |
+          TESTING_URL="${{ env.RPA4ALL_INTERNAL_TEST_URL }}"
+          EFFECTIVE_STATUS="${{ steps.resolve_release_status.outputs.effective_status }}"
+          if [ "$EFFECTIVE_STATUS" = "completed" ]; then
+            MESSAGE="✅ *RPA4All publicado no Google Play Internal*%0A%0A📱 Instale aqui:%0A$TESTING_URL%0A%0A📦 Pacote: com.rpa4all.nextcloud%0A🏷️ Versão: ${{ github.run_number }}"
+          else
+            MESSAGE="ℹ️ *RPA4All enviado ao Google Play Internal como draft*%0A%0A📱 Link do teste:%0A$TESTING_URL%0A%0A📦 Pacote: com.rpa4all.nextcloud%0A🏷️ Versão: ${{ github.run_number }}%0A📌 Status efetivo: $EFFECTIVE_STATUS"
+          fi
+          curl -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+            -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
+            -d text="$MESSAGE" \
+            -d parse_mode="Markdown" || echo "⚠️ Falha ao enviar notificação Telegram (secrets não configurados)"
+
       - name: Clean up service account key
         if: always()
         run: rm -f /tmp/service-account.json
+
+      - name: Clean up keystore
+        if: always()
+        run: rm -f .keys/rpa4all-release.jks
