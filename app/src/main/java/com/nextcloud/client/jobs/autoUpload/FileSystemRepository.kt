@@ -10,6 +10,7 @@ package com.nextcloud.client.jobs.autoUpload
 import android.content.Context
 import android.net.Uri
 import android.os.Build
+import android.os.Environment
 import android.provider.MediaStore
 import com.nextcloud.client.database.dao.FileSystemDao
 import com.nextcloud.client.database.entity.FilesystemEntity
@@ -34,6 +35,11 @@ class FileSystemRepository(
         private const val TAG = "FilesystemRepository"
         const val BATCH_SIZE = 50
     }
+
+    private data class MediaStoreSelection(
+        val selection: String,
+        val selectionArgs: Array<String>
+    )
 
     fun deleteAutoUploadAndUploadEntity(syncedFolder: SyncedFolder, localPath: String, entity: FilesystemEntity) {
         Log_OC.d(TAG, "deleting auto upload entity and upload entity")
@@ -102,6 +108,8 @@ class FileSystemRepository(
     fun insertFromUri(uri: Uri, syncedFolder: SyncedFolder, checkFileType: Boolean = false) {
         val projection = arrayOf(
             MediaStore.MediaColumns.DATA,
+            MediaStore.MediaColumns.RELATIVE_PATH,
+            MediaStore.MediaColumns.DISPLAY_NAME,
             MediaStore.MediaColumns.DATE_MODIFIED,
             MediaStore.MediaColumns.DATE_ADDED
         )
@@ -116,35 +124,31 @@ class FileSystemRepository(
             syncedPath += File.separator
         }
 
-        val selection = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            "${MediaStore.MediaColumns.DATA} LIKE ? AND ${MediaStore.MediaColumns.IS_PENDING} = 0"
-        } else {
-            "${MediaStore.MediaColumns.DATA} LIKE ?"
-        }
-        val selectionArgs = arrayOf("$syncedPath%")
+        val mediaStoreSelection = buildSelectionForSyncedPath(syncedPath)
 
         Log_OC.d(TAG, "Querying MediaStore for files in: $syncedPath, uri: $uri")
 
         val cursor = context.contentResolver.query(
             uri,
             projection,
-            selection,
-            selectionArgs,
+            mediaStoreSelection.selection,
+            mediaStoreSelection.selectionArgs,
             null
         )
 
         cursor?.use {
             val idxData = cursor.getColumnIndex(MediaStore.MediaColumns.DATA)
+            val idxRelativePath = cursor.getColumnIndex(MediaStore.MediaColumns.RELATIVE_PATH)
+            val idxDisplayName = cursor.getColumnIndex(MediaStore.MediaColumns.DISPLAY_NAME)
             val idxModified = cursor.getColumnIndex(MediaStore.MediaColumns.DATE_MODIFIED)
             val idxAdded = cursor.getColumnIndex(MediaStore.MediaColumns.DATE_ADDED)
 
-            if (idxData == -1) {
-                Log_OC.e(TAG, "MediaStore column DATA missing — cannot process URI: $uri")
-                return
-            }
-
             while (cursor.moveToNext()) {
-                val filePath = cursor.getString(idxData)
+                val filePath = resolveLocalPath(cursor, idxData, idxRelativePath, idxDisplayName)
+                if (filePath.isNullOrBlank()) {
+                    Log_OC.w(TAG, "Unable to resolve local path from MediaStore for uri: $uri")
+                    continue
+                }
 
                 val lastModifiedMs = if (idxModified != -1) {
                     cursor.getLong(idxModified) * 1000
@@ -220,6 +224,71 @@ class FileSystemRepository(
         } catch (e: Exception) {
             Log_OC.e(TAG, "Failed to insert/update file: $localPath", e)
         }
+    }
+
+    private fun buildSelectionForSyncedPath(syncedPath: String): MediaStoreSelection {
+        val relativeSyncedPath = syncedPath.toRelativeMediaStorePath()
+
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && relativeSyncedPath != null) {
+            MediaStoreSelection(
+                selection = "${MediaStore.MediaColumns.RELATIVE_PATH} LIKE ? " +
+                    "AND ${MediaStore.MediaColumns.IS_PENDING} = 0",
+                selectionArgs = arrayOf("$relativeSyncedPath%")
+            )
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            MediaStoreSelection(
+                selection = "${MediaStore.MediaColumns.DATA} LIKE ? AND ${MediaStore.MediaColumns.IS_PENDING} = 0",
+                selectionArgs = arrayOf("$syncedPath%")
+            )
+        } else {
+            MediaStoreSelection(
+                selection = "${MediaStore.MediaColumns.DATA} LIKE ?",
+                selectionArgs = arrayOf("$syncedPath%")
+            )
+        }
+    }
+
+    private fun resolveLocalPath(
+        cursor: android.database.Cursor,
+        idxData: Int,
+        idxRelativePath: Int,
+        idxDisplayName: Int
+    ): String? {
+        if (idxData != -1) {
+            cursor.getString(idxData)?.takeIf { it.isNotBlank() }?.let { return it }
+        }
+
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q || idxRelativePath == -1 || idxDisplayName == -1) {
+            return null
+        }
+
+        val relativePath = cursor.getString(idxRelativePath) ?: return null
+        val displayName = cursor.getString(idxDisplayName) ?: return null
+        val externalStorageRoot = Environment.getExternalStorageDirectory().absolutePath
+
+        return File(externalStorageRoot, relativePath + displayName).absolutePath
+    }
+
+    private fun String.toRelativeMediaStorePath(): String? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            return null
+        }
+
+        val externalStorageRoot = Environment.getExternalStorageDirectory().absolutePath
+            .trimEnd(File.separatorChar) + File.separator
+        if (!startsWith(externalStorageRoot)) {
+            return null
+        }
+
+        return removePrefix(externalStorageRoot)
+            .trimStart(File.separatorChar)
+            .let { relative ->
+                when {
+                    relative.isEmpty() -> relative
+                    relative.endsWith(File.separator) -> relative
+                    else -> relative + File.separator
+                }
+            }
     }
 
     private fun getFileChecksum(file: File): Long? = try {

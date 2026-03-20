@@ -1090,31 +1090,52 @@ public class UploadFileOperation extends SyncOperation {
                 filePath = temporalFile.toPath();
             }
 
-            // file exists in storage
-            try (FileChannel channel = FileChannel.open(filePath, StandardOpenOption.READ)) {
-                FileLock fileLock = null;
+            FileChannel channel = null;
+            FileLock fileLock = null;
+            try {
                 try {
-                    // request a shared lock instead of exclusive one, since we are just reading file
-                    fileLock = channel.tryLock(0L, Long.MAX_VALUE, true);
-                    Log_OC.d(TAG ,"🔒" + "file locked");
-                } catch (OverlappingFileLockException e) {
-                    Log_OC.e(TAG, "shared lock overlap detected; proceeding safely.");
+                    channel = FileChannel.open(filePath, StandardOpenOption.READ);
+                } catch (Exception e) {
+                    Log_OC.e(TAG, "failed to open readable file channel, continuing without explicit lock: " + filePath,
+                        e);
+                }
+
+                if (channel != null) {
+                    try {
+                        // request a shared lock instead of exclusive one, since we are just reading file
+                        fileLock = channel.tryLock(0L, Long.MAX_VALUE, true);
+                        Log_OC.d(TAG ,"🔒" + "file locked");
+                    } catch (OverlappingFileLockException e) {
+                        Log_OC.e(TAG, "shared lock overlap detected; proceeding safely.");
+                    } catch (Exception e) {
+                        Log_OC.e(TAG, "shared lock unavailable; proceeding without lock for " + filePath, e);
+                    }
+                } else {
+                    Log_OC.w(TAG, "skipping file lock because channel is unavailable for " + filePath);
                 }
 
                 // determine size
                 long size;
                 try {
-                    size = channel.size();
+                    size = channel != null ? channel.size() : Files.size(filePath);
                 } catch (Exception e) {
-                    Log_OC.e(TAG, "failed to determine file size from channel: ", e);
+                    Log_OC.e(TAG, "failed to determine file size from nio access: ", e);
 
-                    try {
-                        size = Files.size(filePath);
-                    } catch (Exception exception) {
-                        Log_OC.e(TAG, "failed to determine file size from nio.File: ", exception);
+                    File fallbackFile = temporalFile;
+                    if (fallbackFile == null || !fallbackFile.exists()) {
+                        fallbackFile = new File(filePath.toString());
+                    }
+                    if (!fallbackFile.exists()) {
+                        fallbackFile = originalFile;
+                    }
+
+                    if (!fallbackFile.exists()) {
+                        Log_OC.e(TAG, "failed to resolve upload file size, file not found: " + filePath);
                         result = new RemoteOperationResult<>(ResultCode.FILE_NOT_FOUND);
                         return result;
                     }
+
+                    size = fallbackFile.length();
                 }
 
                 final var formattedFileSize = Formatter.formatFileSize(mContext, size);
@@ -1166,10 +1187,22 @@ public class UploadFileOperation extends SyncOperation {
                     Log_OC.e(TAG, "upload operation failed with SC_PRECONDITION_FAILED");
                     result = new RemoteOperationResult<>(ResultCode.SYNC_CONFLICT);
                 }
-
+            } finally {
                 if (fileLock != null && fileLock.isValid()) {
-                    fileLock.release();
-                    Log_OC.d(TAG ,"🔓" + "file lock released");
+                    try {
+                        fileLock.release();
+                        Log_OC.d(TAG ,"🔓" + "file lock released");
+                    } catch (Exception e) {
+                        Log_OC.e(TAG, "failed to release shared file lock for " + filePath, e);
+                    }
+                }
+
+                if (channel != null && channel.isOpen()) {
+                    try {
+                        channel.close();
+                    } catch (Exception e) {
+                        Log_OC.e(TAG, "failed to close readable file channel for " + filePath, e);
+                    }
                 }
             }
         } catch (FileNotFoundException e) {
@@ -1245,6 +1278,11 @@ public class UploadFileOperation extends SyncOperation {
     private RemoteOperationResult copyFile(File originalFile, String expectedPath) throws OperationCancelledException,
         IOException {
         if (mLocalBehaviour == FileUploadWorker.LOCAL_BEHAVIOUR_COPY && !mOriginalStoragePath.equals(expectedPath)) {
+            if (!mOriginalStoragePath.startsWith(UriUtils.URI_CONTENT_SCHEME)) {
+                Log_OC.d(TAG, "skipping staging copy; upload will stream from original source file");
+                return new RemoteOperationResult<>(ResultCode.OK);
+            }
+
             String temporalPath = FileStorageUtils.getInternalTemporalPath(user.getAccountName(), mContext) +
                 mFile.getRemotePath();
             mFile.setStoragePath(temporalPath);
@@ -1628,6 +1666,10 @@ public class UploadFileOperation extends SyncOperation {
                     } else {
                         in = new FileInputStream(sourceFile);
                     }
+                    if (in == null) {
+                        Log_OC.e(TAG, "failed to open source stream for copy: " + mOriginalStoragePath);
+                        return new RemoteOperationResult(ResultCode.LOCAL_FILE_NOT_FOUND);
+                    }
                     out = new FileOutputStream(targetFile);
                     int nRead;
                     byte[] buf = new byte[4096];
@@ -1642,7 +1684,17 @@ public class UploadFileOperation extends SyncOperation {
                 if (mCancellationRequested.get()) {
                     return new RemoteOperationResult(new OperationCancelledException());
                 }
+            } catch (FileNotFoundException e) {
+                Log_OC.e(TAG, "failed to copy local file, source not found: " + sourceFile.getAbsolutePath(), e);
+                return new RemoteOperationResult(ResultCode.LOCAL_FILE_NOT_FOUND);
+            } catch (SecurityException e) {
+                Log_OC.e(TAG, "failed to copy local file because access was denied: " + mOriginalStoragePath, e);
+                UploadFileOperationExtensionsKt.showStoragePermissionNotification(this);
+                missingPermissionThrown.set(true);
+                return new RemoteOperationResult<>(new UploadFileException.MissingPermission());
             } catch (Exception e) {
+                Log_OC.e(TAG, "failed to copy local file from " + sourceFile.getAbsolutePath() + " to "
+                    + targetFile.getAbsolutePath(), e);
                 return new RemoteOperationResult(ResultCode.LOCAL_STORAGE_NOT_COPIED);
             } finally {
                 try {
