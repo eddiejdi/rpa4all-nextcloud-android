@@ -147,9 +147,10 @@ android {
                 dimension = "default"
                 matchingFallbacks += listOf("generic")
                 // Separate versioning for RPA4All flavor to avoid Play Store conflicts
-                // Base: 33.1.0 + build number offset for independent releases
-                versionCode = 330010010 + (System.getenv("RPA4ALL_BUILD_NUMBER")?.toIntOrNull() ?: 0)
-                versionName = "33.1.0${if (System.getenv("RPA4ALL_BUILD_NUMBER") != null) ".${System.getenv("RPA4ALL_BUILD_NUMBER")}" else ".internal"}"
+                // Start from 33100000, add run number offset (last 5 digits)
+                val buildOffset = System.getenv("RPA4ALL_BUILD_NUMBER")?.toIntOrNull() ?: 0
+                versionCode = 33100000 + buildOffset
+                versionName = "33.1.0${if (buildOffset > 0) ".build$buildOffset" else ""}.internal"
             }
 
             register("gplay") {

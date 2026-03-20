@@ -56,10 +56,13 @@ jobs:
       - name: Calculate unique version code
         run: |
           # Use GitHub run number to ensure unique versionCode across builds
-          export RPA4ALL_BUILD_NUMBER=${{ github.run_number }}
-          echo "RPA4ALL_BUILD_NUMBER=$RPA4ALL_BUILD_NUMBER" >> $GITHUB_ENV
-          echo "VERSION_CODE=$((330010010 + RPA4ALL_BUILD_NUMBER))" >> $GITHUB_ENV
-          echo "Build #$RPA4ALL_BUILD_NUMBER → versionCode=$((330010010 + RPA4ALL_BUILD_NUMBER))"
+          # Keep within Android int32 limit (max 2147483647)
+          RUN_NUM=${{ github.run_number }}
+          BUILD_OFFSET=$((RUN_NUM % 100000))  # Use last 5 digits to stay within range
+          VERSION_CODE=$((33100000 + BUILD_OFFSET))
+          echo "RPA4ALL_BUILD_NUMBER=$BUILD_OFFSET" >> $GITHUB_ENV
+          echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_ENV
+          echo "Build #$RUN_NUM (offset: $BUILD_OFFSET) → versionCode=$VERSION_CODE"
 
       - name: Build signed AAB
         env:
