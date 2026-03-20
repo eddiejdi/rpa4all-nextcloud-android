@@ -26,6 +26,10 @@ on:
           - draft
           - completed
 
+env:
+  RPA4ALL_VERSION_CODE_BASE: 330010000
+  RPA4ALL_INTERNAL_TEST_URL: https://play.google.com/apps/internaltest/4701629039076063679
+
 # Só permite uma publicação por vez
 concurrency:
   group: publish-rpa4all
@@ -64,11 +68,11 @@ jobs:
 
       - name: Calculate unique version code
         run: |
-          # Use GitHub run number to ensure unique versionCode across builds
-          # Keep within Android int32 limit (max 2147483647)
+          # Keep the RPA4All internal track monotonic with the already published 33.1.0 Alpha1 build.
+          # Use a bounded offset to stay within the Android int32 limit (max 2147483647).
           RUN_NUM=${{ github.run_number }}
-          BUILD_OFFSET=$((RUN_NUM % 100000))  # Use last 5 digits to stay within range
-          VERSION_CODE=$((33100000 + BUILD_OFFSET))
+          BUILD_OFFSET=$(((RUN_NUM % 99999) + 1))
+          VERSION_CODE=$((${{ env.RPA4ALL_VERSION_CODE_BASE }} + BUILD_OFFSET))
           echo "RPA4ALL_BUILD_NUMBER=$BUILD_OFFSET" >> $GITHUB_ENV
           echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_ENV
           echo "Build #$RUN_NUM (offset: $BUILD_OFFSET) → versionCode=$VERSION_CODE"
@@ -173,13 +177,13 @@ jobs:
           echo "- Version Code: ${{ env.VERSION_CODE }}" >> "$GITHUB_STEP_SUMMARY"
           echo "- Build #: ${{ env.RPA4ALL_BUILD_NUMBER }}" >> "$GITHUB_STEP_SUMMARY"
           if [ "${{ inputs.track }}" = "internal" ]; then
-            echo "- Internal testing URL: https://play.google.com/apps/testing/com.rpa4all.nextcloud" >> "$GITHUB_STEP_SUMMARY"
+            echo "- Internal testing URL: ${{ env.RPA4ALL_INTERNAL_TEST_URL }}" >> "$GITHUB_STEP_SUMMARY"
           fi
 
       - name: Send Telegram notification
         if: success() && inputs.track == 'internal'
         run: |
-          TESTING_URL="https://play.google.com/apps/testing/com.rpa4all.nextcloud"
+          TESTING_URL="${{ env.RPA4ALL_INTERNAL_TEST_URL }}"
           EFFECTIVE_STATUS="${{ steps.resolve_release_status.outputs.effective_status }}"
           if [ "$EFFECTIVE_STATUS" = "completed" ]; then
             MESSAGE="✅ *RPA4All publicado no Google Play Internal*%0A%0A📱 Instale aqui:%0A$TESTING_URL%0A%0A📦 Pacote: com.rpa4all.nextcloud%0A🏷️ Versão: ${{ github.run_number }}"

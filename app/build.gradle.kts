@@ -146,10 +146,9 @@ android {
                 applicationId = "com.rpa4all.nextcloud"
                 dimension = "default"
                 matchingFallbacks += listOf("generic")
-                // Separate versioning for RPA4All flavor to avoid Play Store conflicts
-                // Start from 33100000, add run number offset (last 5 digits)
-                val buildOffset = System.getenv("RPA4ALL_BUILD_NUMBER")?.toIntOrNull() ?: 0
-                versionCode = 33100000 + buildOffset
+                // Keep the internal track monotonic with the already published 33.1.0 Alpha1 release (330010000).
+                val buildOffset = System.getenv("RPA4ALL_BUILD_NUMBER")?.toIntOrNull() ?: 1
+                versionCode = 330010000 + buildOffset
                 versionName = "33.1.0${if (buildOffset > 0) ".build$buildOffset" else ""}.internal"
             }
 
