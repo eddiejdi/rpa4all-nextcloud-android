@@ -16,6 +16,14 @@ on:
           - alpha
           - beta
           - production
+      release_status:
+        description: "Google Play release status"
+        required: true
+        default: "draft"
+        type: choice
+        options:
+          - draft
+          - completed
 
 # Só permite uma publicação por vez
 concurrency:
@@ -99,7 +107,7 @@ jobs:
           packageName: com.rpa4all.nextcloud
           releaseFiles: app/build/outputs/bundle/rpa4allRelease/app-rpa4all-release.aab
           track: ${{ inputs.track }}
-          status: completed
+          status: ${{ inputs.release_status }}
 
       - name: Publish rollout summary
         if: always()
@@ -107,6 +115,7 @@ jobs:
           echo "## RPA4All Play Publish" >> "$GITHUB_STEP_SUMMARY"
           echo "- Package: com.rpa4all.nextcloud" >> "$GITHUB_STEP_SUMMARY"
           echo "- Track: ${{ inputs.track }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Release status: ${{ inputs.release_status }}" >> "$GITHUB_STEP_SUMMARY"
           echo "- Version Code: ${{ env.VERSION_CODE }}" >> "$GITHUB_STEP_SUMMARY"
           echo "- Build #: ${{ env.RPA4ALL_BUILD_NUMBER }}" >> "$GITHUB_STEP_SUMMARY"
           if [ "${{ inputs.track }}" = "internal" ]; then
