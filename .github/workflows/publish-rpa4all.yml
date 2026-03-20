@@ -53,11 +53,20 @@ jobs:
       - name: Ensure Gradle wrapper is executable
         run: chmod +x ./gradlew
 
+      - name: Calculate unique version code
+        run: |
+          # Use GitHub run number to ensure unique versionCode across builds
+          export RPA4ALL_BUILD_NUMBER=${{ github.run_number }}
+          echo "RPA4ALL_BUILD_NUMBER=$RPA4ALL_BUILD_NUMBER" >> $GITHUB_ENV
+          echo "VERSION_CODE=$((330010010 + RPA4ALL_BUILD_NUMBER))" >> $GITHUB_ENV
+          echo "Build #$RPA4ALL_BUILD_NUMBER → versionCode=$((330010010 + RPA4ALL_BUILD_NUMBER))"
+
       - name: Build signed AAB
         env:
           STORE_PASS: ${{ secrets.RPA4ALL_KEYSTORE_STOREPASS }}
           KEY_PASS: ${{ secrets.RPA4ALL_KEYSTORE_KEYPASS }}
           KEY_ALIAS: ${{ secrets.RPA4ALL_KEYSTORE_ALIAS }}
+          RPA4ALL_BUILD_NUMBER: ${{ env.RPA4ALL_BUILD_NUMBER }}
         run: |
           echo "org.gradle.jvmargs=-Xmx4g -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8 -XX:+UseParallelGC -XX:MaxMetaspaceSize=512m" >> gradle.properties
           echo "org.gradle.caching=true" >> gradle.properties
@@ -95,6 +104,8 @@ jobs:
           echo "## RPA4All Play Publish" >> "$GITHUB_STEP_SUMMARY"
           echo "- Package: com.rpa4all.nextcloud" >> "$GITHUB_STEP_SUMMARY"
           echo "- Track: ${{ inputs.track }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Version Code: ${{ env.VERSION_CODE }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Build #: ${{ env.RPA4ALL_BUILD_NUMBER }}" >> "$GITHUB_STEP_SUMMARY"
           if [ "${{ inputs.track }}" = "internal" ]; then
             echo "- Internal testing URL: https://play.google.com/apps/testing/com.rpa4all.nextcloud" >> "$GITHUB_STEP_SUMMARY"
           fi

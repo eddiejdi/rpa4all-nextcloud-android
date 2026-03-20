@@ -65,7 +65,7 @@ configurations.configureEach {
 val versionMajor = 33
 val versionMinor = 1
 val versionPatch = 0
-val versionBuild = 0 // 0-50=Alpha / 51-98=RC / 90-99=stable
+val versionBuild = 1 // 0-50=Alpha / 51-98=RC / 90-99=stable
 
 val ndkEnv = buildMap {
     file("${project.rootDir}/ndk.env").readLines().forEach {
@@ -146,6 +146,10 @@ android {
                 applicationId = "com.rpa4all.nextcloud"
                 dimension = "default"
                 matchingFallbacks += listOf("generic")
+                // Separate versioning for RPA4All flavor to avoid Play Store conflicts
+                // Base: 33.1.0 + build number offset for independent releases
+                versionCode = 330010010 + (System.getenv("RPA4ALL_BUILD_NUMBER")?.toIntOrNull() ?: 0)
+                versionName = "33.1.0${if (System.getenv("RPA4ALL_BUILD_NUMBER") != null) ".${System.getenv("RPA4ALL_BUILD_NUMBER")}" else ".internal"}"
             }
 
             register("gplay") {
