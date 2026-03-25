@@ -105,6 +105,9 @@ jobs:
         run: |
           echo "${{ secrets.RPA4ALL_PLAY_SERVICE_ACCOUNT_JSON_B64 }}" | base64 -d > /tmp/service-account.json
 
+      - name: Install Google Play API dependencies
+        run: python3 -m pip install --user google-api-python-client google-auth
+
       - name: Publish to Google Play (${{ inputs.track }}) as completed
         if: inputs.release_status == 'completed'
         id: publish_completed
@@ -165,6 +168,15 @@ jobs:
             fi
           fi
           echo "effective_status=$EFFECTIVE_STATUS" >> "$GITHUB_OUTPUT"
+
+      - name: Sync Play Store listing metadata
+        continue-on-error: true
+        if: success()
+        run: |
+          python3 scripts/release/upload_rpa4all_play.py \
+            --service-account-json /tmp/service-account.json \
+            --metadata-dir src/rpa4all/fastlane/metadata \
+            --package-name com.rpa4all.nextcloud
 
       - name: Publish rollout summary
         if: always()

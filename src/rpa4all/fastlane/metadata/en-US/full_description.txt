@@ -1,0 +1,21 @@
+Nextcloud -by RPA4All is the official Android client for secure access to the RPA4All corporate environment at https://nextcloud.rpa4all.com.
+
+With the app you can:
+* sign in with your RPA4All corporate account
+* access, upload, move and share files securely
+* keep important folders available offline
+* sync content between your phone and the corporate environment
+* enable automatic photo and video upload
+* receive activity and update notifications
+* protect access with PIN or biometric unlock
+
+Important:
+* this app is preconfigured for the RPA4All environment
+* an organization-managed account is required
+
+Privacy policy:
+https://eddiejdi.github.io/rpa4all-nextcloud-android/
+
+Support:
+https://wiki.rpa4all.com/infraestrutura/nextcloud-rpa4all-authentik
+https://github.com/eddiejdi/rpa4all-nextcloud-android

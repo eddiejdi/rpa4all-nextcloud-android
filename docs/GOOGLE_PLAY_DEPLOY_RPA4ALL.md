@@ -3,14 +3,16 @@
 ## App
 
 - Package: `com.rpa4all.nextcloud`
-- Name: `NextCloud by RPA4All`
+- Name: `Nextcloud -by RPA4All`
+- Metadata da ficha Play: `src/rpa4all/fastlane/metadata`
 
 ## Pre-requisitos
 
 1. Conta Play Console com app criado para `com.rpa4all.nextcloud`.
 2. Service Account com permissão de release no app.
-3. JSON da Service Account local (exemplo: `~/.secrets/google-play-rpa4all.json`).
-4. Keystore de upload da Play (a mesma registrada no app).
+3. Para atualizar descrição, screenshots e assets da ficha, a conta também precisa de permissão de Store Presence / App content no Play Console.
+4. JSON da Service Account local (exemplo: `~/.secrets/google-play-rpa4all.json`).
+5. Keystore de upload da Play (a mesma registrada no app).
 
 ## GitHub Actions (publicacao automatica)
 
@@ -44,6 +46,25 @@ Artefatos:
 - `release-play/app-rpa4all-release-unsigned.aab`
 - `release-play/app-rpa4all-release-signed.aab` (se variáveis de assinatura estiverem definidas)
 
+## Ficha da Play Store
+
+Gerar ou atualizar os assets locais da ficha:
+
+```bash
+cd /home/edenilson/eddie-auto-dev/forks/rpa4all-nextcloud-android
+chmod +x scripts/release/render_rpa4all_play_assets.sh
+scripts/release/render_rpa4all_play_assets.sh
+```
+
+Estrutura usada pelo upload:
+
+- `src/rpa4all/fastlane/metadata/config.json`
+- `src/rpa4all/fastlane/metadata/pt-BR/{title,short_description,full_description}.txt`
+- `src/rpa4all/fastlane/metadata/en-US/{title,short_description,full_description}.txt`
+- `src/rpa4all/fastlane/metadata/<locale>/images/icon.png`
+- `src/rpa4all/fastlane/metadata/<locale>/images/featureGraphic.png`
+- `src/rpa4all/fastlane/metadata/<locale>/images/phoneScreenshots/*.png`
+
 ## Assinatura (opcional no script de build)
 
 Definir antes do build:
@@ -69,14 +90,27 @@ Executar upload:
 python3 scripts/release/upload_rpa4all_play.py \
   --service-account-json ~/.secrets/google-play-rpa4all.json \
   --aab release-play/app-rpa4all-release-signed.aab \
+  --metadata-dir src/rpa4all/fastlane/metadata \
   --package-name com.rpa4all.nextcloud \
   --track internal \
   --status completed
+```
+
+Atualizar somente a ficha da loja, sem novo build:
+
+```bash
+python3 scripts/release/upload_rpa4all_play.py \
+  --service-account-json ~/.secrets/google-play-rpa4all.json \
+  --metadata-dir src/rpa4all/fastlane/metadata \
+  --package-name com.rpa4all.nextcloud
 ```
 
 ## Observações
 
 - Sem a keystore correta de upload, a Play rejeita o AAB.
 - Sem service account com acesso ao app, o upload falha com permissão.
+- O script atualiza título, descrições, contato, ícone, feature graphic e screenshots por locale.
+- Se o `commit` do edit retornar `403 The caller does not have permission`, a Service Account ainda não tem permissão suficiente para Store Presence no app.
+- A URL da política de privacidade usada no app e na ficha é `https://eddiejdi.github.io/rpa4all-nextcloud-android/`.
 - Link para testers (internal testing): `https://play.google.com/apps/testing/com.rpa4all.nextcloud`
   - O app aparece para instalacao depois do primeiro upload bem-sucedido no track `internal`.
