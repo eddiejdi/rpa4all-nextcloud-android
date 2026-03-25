@@ -310,6 +310,12 @@ tasks.withType<SpotBugsTask>().configureEach {
     )
     excludeFilter.set(file("${project.rootDir}/scripts/analysis/spotbugs-filter.xml"))
 
+    // Fix CI: SpotBugs forca o JVM com todos os jars de dependencia no -auxclasspath,
+    // excedendo ARG_MAX nos runners do GitHub Actions.
+    // Limpar auxClassPaths reduz o tamanho da linha de comando sem impactar a
+    // deteccao de bugs no codigo do proprio app.
+    auxClassPaths.setFrom()
+
     reports.create("xml") {
         required.set(true)
     }
