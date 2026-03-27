@@ -10,7 +10,10 @@ package com.owncloud.android.datamodel;
 import android.content.ContentResolver;
 import android.database.Cursor;
 import android.net.Uri;
+import android.os.Build;
+import android.os.Environment;
 import android.provider.MediaStore;
+import android.text.TextUtils;
 
 import com.owncloud.android.MainApp;
 import com.owncloud.android.lib.common.utils.Log_OC;
@@ -35,7 +38,11 @@ public final class MediaProvider {
 
     // fixed query parameters
     private static final Uri IMAGES_MEDIA_URI = android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI;
-    private static final String[] FILE_PROJECTION = new String[]{MediaStore.MediaColumns.DATA};
+    private static final String[] FILE_PROJECTION = new String[]{
+        MediaStore.MediaColumns.DATA,
+        MediaStore.MediaColumns.RELATIVE_PATH,
+        MediaStore.MediaColumns.DISPLAY_NAME
+    };
     private static final String IMAGES_FILE_SELECTION = MediaStore.Images.Media.BUCKET_ID + "=";
     private static final String[] IMAGES_FOLDER_PROJECTION = {MediaStore.Images.Media.BUCKET_ID,
         MediaStore.Images.Media.BUCKET_DISPLAY_NAME};
@@ -112,8 +119,7 @@ public final class MediaProvider {
                     String filePath;
                     int imageCount = 0;
                     while (cursorImages.moveToNext() && imageCount < itemLimit) {
-                        filePath = cursorImages.getString(cursorImages.getColumnIndexOrThrow(
-                            MediaStore.MediaColumns.DATA));
+                        filePath = resolveFilePath(cursorImages);
 
                         // check if valid path and file exists
                         if (isValidAndExistingFilePath(filePath)) {
@@ -156,6 +162,37 @@ public final class MediaProvider {
 
     private static boolean isValidAndExistingFilePath(String filePath) {
         return filePath != null && filePath.lastIndexOf('/') > 0 && new File(filePath).exists();
+    }
+
+    @Nullable
+    private static String resolveFilePath(Cursor cursor) {
+        int dataIndex = cursor.getColumnIndex(MediaStore.MediaColumns.DATA);
+        if (dataIndex != -1) {
+            String dataPath = cursor.getString(dataIndex);
+            if (!TextUtils.isEmpty(dataPath)) {
+                return dataPath;
+            }
+        }
+
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            return null;
+        }
+
+        int relativePathIndex = cursor.getColumnIndex(MediaStore.MediaColumns.RELATIVE_PATH);
+        int displayNameIndex = cursor.getColumnIndex(MediaStore.MediaColumns.DISPLAY_NAME);
+
+        if (relativePathIndex == -1 || displayNameIndex == -1) {
+            return null;
+        }
+
+        String relativePath = cursor.getString(relativePathIndex);
+        String displayName = cursor.getString(displayNameIndex);
+        if (TextUtils.isEmpty(displayName)) {
+            return null;
+        }
+
+        String safeRelativePath = relativePath == null ? "" : relativePath;
+        return new File(Environment.getExternalStorageDirectory(), safeRelativePath + displayName).getAbsolutePath();
     }
 
     private static void checkPermissions(@Nullable AppCompatActivity activity) {
@@ -220,10 +257,9 @@ public final class MediaProvider {
                     String filePath;
                     int videoCount = 0;
                     while (cursorVideos.moveToNext() && videoCount < itemLimit) {
-                        filePath = cursorVideos.getString(cursorVideos.getColumnIndexOrThrow(
-                            MediaStore.MediaColumns.DATA));
+                        filePath = resolveFilePath(cursorVideos);
 
-                        if (filePath != null) {
+                        if (isValidAndExistingFilePath(filePath)) {
                             mediaFolder.filePaths.add(filePath);
                             mediaFolder.absolutePath = filePath.substring(0, filePath.lastIndexOf('/'));
                         }

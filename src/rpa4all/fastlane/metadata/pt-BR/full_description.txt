@@ -1,0 +1,21 @@
+Nextcloud -by RPA4All é o aplicativo Android oficial para acessar com segurança o ambiente corporativo da RPA4All em https://nextcloud.rpa4all.com.
+
+Com o app você pode:
+* entrar com sua conta corporativa RPA4All
+* acessar, enviar, mover e compartilhar arquivos com segurança
+* manter pastas importantes disponíveis offline
+* sincronizar conteúdo entre o celular e o ambiente corporativo
+* fazer upload automático de fotos e vídeos
+* receber notificações sobre atividades e atualizações
+* proteger o acesso com PIN ou biometria
+
+Importante:
+* este app já vem direcionado para o ambiente RPA4All
+* é necessário possuir uma conta autorizada pela organização
+
+Política de privacidade:
+https://eddiejdi.github.io/rpa4all-nextcloud-android/
+
+Suporte:
+https://wiki.rpa4all.com/infraestrutura/nextcloud-rpa4all-authentik
+https://github.com/eddiejdi/rpa4all-nextcloud-android

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">RPA4All Cloud</string>
+    <string name="app_name">RPA4All br NextCloud</string>
     <string name="account_type">rpa4all.nextcloud</string>
     <string name="authority">com.rpa4all.nextcloud.provider</string>
     <string name="users_and_groups_search_authority">com.rpa4all.nextcloud.providers.UsersAndGroupsSearchProvider</string>
@@ -11,7 +11,7 @@
     <string name="db_file">rpa4all_nextcloud.db</string>
     <string name="db_name">rpa4all_nextcloud</string>
     <string name="data_folder">rpa4all-nextcloud</string>
-    <string name="default_display_name_for_root_folder">RPA4All Cloud</string>
+    <string name="default_display_name_for_root_folder">RPA4All br NextCloud</string>
     <string name="name_for_branded_user_agent">RPA4All</string>
 
     <bool name="show_server_url_input">false</bool>
@@ -22,9 +22,10 @@
     <bool name="disable_more_external_site">true</bool>
     <bool name="show_whats_new">false</bool>
 
-    <string name="enforce_servers" translatable="false">[{\"name\":\"RPA4All Cloud\",\"url\":\"https://nextcloud.rpa4all.com\"}]</string>
+    <string name="enforce_servers" translatable="false">[{\"name\":\"RPA4All br NextCloud\",\"url\":\"https://nextcloud.rpa4all.com\"}]</string>
     <string name="url_help">https://wiki.rpa4all.com/infraestrutura/nextcloud-rpa4all-authentik</string>
-    <string name="privacy_url">https://www.rpa4all.com</string>
+    <string name="webview_login_url" translatable="false">https://nextcloud.rpa4all.com/index.php/login</string>
+    <string name="privacy_url">https://eddiejdi.github.io/rpa4all-nextcloud-android/</string>
     <string name="sourcecode_url" translatable="false">https://github.com/eddiejdi/rpa4all-nextcloud-android</string>
     <string name="url_app_download">https://github.com/eddiejdi/rpa4all-nextcloud-android/releases/latest/download/rpa4all-nextcloud-android-v1.0.0.apk</string>
 
@@ -34,6 +35,6 @@
     <color name="login_text_color">#EAF3FA</color>
     <color name="login_text_hint_color">#9CC9E6</color>
 
-    <string name="splashScreenBold">RPA4All</string>
-    <string name="splashScreenNormal">Cloud</string>
+    <string name="splashScreenBold">RPA4All br</string>
+    <string name="splashScreenNormal">NextCloud</string>
 </resources>

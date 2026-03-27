@@ -23,6 +23,7 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.nextcloud.client.di.Injectable
 import com.nextcloud.client.preferences.SubFolderRule
 import com.nextcloud.utils.extensions.getParcelableArgument
+import com.nextcloud.client.jobs.upload.FileUploadWorker
 import com.owncloud.android.R
 import com.owncloud.android.databinding.SyncedFoldersSettingsLayoutBinding
 import com.owncloud.android.datamodel.MediaFolderType
@@ -154,7 +155,8 @@ class SyncedFolderPreferencesDialogFragment :
             binding.settingInstantUploadOnChargingCheckbox,
             binding.settingInstantUploadExistingCheckbox,
             binding.settingInstantUploadPathUseSubfoldersCheckbox,
-            binding.settingInstantUploadExcludeHiddenCheckbox
+            binding.settingInstantUploadExcludeHiddenCheckbox,
+            binding.settingDeleteLocalAfterTransferCheckbox
         )
 
         viewThemeUtils?.material?.colorMaterialButtonPrimaryTonal(binding.btnPositive)
@@ -215,6 +217,7 @@ class SyncedFolderPreferencesDialogFragment :
                 if (binding.settingInstantUploadPathUseSubfoldersCheckbox.isChecked) View.VISIBLE else View.GONE
 
             binding.settingInstantBehaviourSummary.text = uploadBehaviorItemStrings[it.uploadActionInteger]
+            updateDeleteAfterTransferCheckboxState(it)
             val nameCollisionPolicyIndex = getSelectionIndexForNameCollisionPolicy(
                 it.nameCollisionPolicy
             )
@@ -293,6 +296,7 @@ class SyncedFolderPreferencesDialogFragment :
                 resources.getTextArray(R.array.pref_behaviour_entryValues)[0].toString()
             )
             binding?.settingInstantBehaviourSummary?.setText(R.string.auto_upload_file_behaviour_kept_in_folder)
+            syncedFolder?.let { updateDeleteAfterTransferCheckboxState(it) }
         }
     }
 
@@ -325,9 +329,17 @@ class SyncedFolderPreferencesDialogFragment :
             binding.settingInstantUploadExistingCheckbox.isEnabled = enable
             binding.settingInstantUploadPathUseSubfoldersCheckbox.isEnabled = enable
             binding.settingInstantUploadExcludeHiddenCheckbox.isEnabled = enable
+            binding.settingDeleteLocalAfterTransferContainer.isEnabled = enable
+            binding.settingDeleteLocalAfterTransferContainer.alpha = alpha
+            binding.settingDeleteLocalAfterTransferCheckbox.isEnabled = enable
         }
 
         checkWritableFolder()
+    }
+
+    private fun updateDeleteAfterTransferCheckboxState(syncedFolder: SyncedFolderParcelable) {
+        binding?.settingDeleteLocalAfterTransferCheckbox?.isChecked =
+            syncedFolder.uploadAction == FileUploadWorker.LOCAL_BEHAVIOUR_DELETE
     }
 
     /**
@@ -372,6 +384,16 @@ class SyncedFolderPreferencesDialogFragment :
                 syncedFolder.isExcludeHidden = !syncedFolder.isExcludeHidden
                 binding.settingInstantUploadExcludeHiddenCheckbox.toggle()
             }
+            binding.settingDeleteLocalAfterTransferContainer.setOnClickListener {
+                val selectedBehaviourValue = if (syncedFolder.uploadAction == FileUploadWorker.LOCAL_BEHAVIOUR_DELETE) {
+                    "LOCAL_BEHAVIOUR_FORGET"
+                } else {
+                    "LOCAL_BEHAVIOUR_DELETE"
+                }
+                syncedFolder.setUploadAction(selectedBehaviourValue)
+                binding.settingInstantBehaviourSummary.text = uploadBehaviorItemStrings[syncedFolder.uploadActionInteger]
+                updateDeleteAfterTransferCheckboxState(syncedFolder)
+            }
             binding.settingInstantUploadSubfolderRuleSpinner.onItemSelectedListener =
                 object : AdapterView.OnItemSelectedListener {
                     override fun onItemSelected(adapterView: AdapterView<*>?, view: View, i: Int, l: Long) {
@@ -413,6 +435,7 @@ class SyncedFolderPreferencesDialogFragment :
                 .setSingleChoiceItems(behaviourEntries, it.uploadActionInteger) { dialog: DialogInterface, which: Int ->
                     it.setUploadAction(behaviourEntryValues[which].toString())
                     binding?.settingInstantBehaviourSummary?.text = uploadBehaviorItemStrings[which]
+                    updateDeleteAfterTransferCheckboxState(it)
                     behaviourDialogShown = false
                     dialog.dismiss()
                 }

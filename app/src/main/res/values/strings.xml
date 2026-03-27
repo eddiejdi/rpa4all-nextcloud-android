@@ -724,6 +724,8 @@
     <string name="pref_behaviour_entries_keep_file">kept in original folder</string>
     <string name="pref_behaviour_entries_move">moved to app folder</string>
     <string name="pref_behaviour_entries_delete_file">deleted</string>
+    <string name="prefs_delete_local_after_transfer_title">Excluir o arquivo local após a transferência concluída</string>
+    <string name="prefs_delete_local_after_transfer_summary">Mantém o arquivo no servidor e remove a cópia local após upload bem-sucedido.</string>
     <string name="prefs_data_storage_location">Data storage location</string>
     <string name="prefs_data_storage_location_summary">Manage data storage location</string>
 
